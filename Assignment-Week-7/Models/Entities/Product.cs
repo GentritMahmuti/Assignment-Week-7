@@ -1,6 +1,6 @@
 ﻿using Nest;
 
-namespace Assignment_Week_7.Models
+namespace Assignment_Week_7.Models.Entities
 {
     public class Product
     {
