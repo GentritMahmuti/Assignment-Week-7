@@ -1,4 +1,5 @@
 using Assignment_Week_7.Models.DTOs;
+using Assignment_Week_7.Workers;
 using Elasticsearch.Net;
 using FluentValidation;
 using lifeEcommerce.Helpers;
@@ -14,6 +15,10 @@ var connectionSettings = new ConnectionSettings(node).BasicAuthentication("elast
 
 var client = new ElasticClient(connectionSettings);
 builder.Services.AddSingleton(client);
+
+builder.Services.AddSingleton<UpdateProductsInElsasticBackgroundWorker>();
+builder.Services.AddHostedService<UpdateProductsInElsasticBackgroundWorker>();
+
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

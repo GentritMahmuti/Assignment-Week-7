@@ -1,5 +1,6 @@
 ﻿using Assignment_Week_7.Models.DTOs;
 using Assignment_Week_7.Models.Entities;
+using Assignment_Week_7.Workers;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Nest;
@@ -11,11 +12,13 @@ namespace Assignment_Week_7.Controllers
     {
         private readonly IValidator<SearchProductDto> _searchProductDtoValidator;
         private readonly ElasticClient _elasticClient;
-        
-        public ProductController(ElasticClient elasticClient, IValidator<SearchProductDto> searchProductDtoValidator)
+        private readonly UpdateProductsInElsasticBackgroundWorker _updateProductsInElsasticBackgroundWorker;
+
+        public ProductController(ElasticClient elasticClient, IValidator<SearchProductDto> searchProductDtoValidator, UpdateProductsInElsasticBackgroundWorker updateProductsInElsasticBackgroundWorker)
         {
             _elasticClient = elasticClient;
             _searchProductDtoValidator = searchProductDtoValidator;
+            _updateProductsInElsasticBackgroundWorker = updateProductsInElsasticBackgroundWorker;
         }
 
         [HttpGet("getAllProductsUsingElastic")]
@@ -145,6 +148,12 @@ namespace Assignment_Week_7.Controllers
                 x.Index("products").IndexMany(productsToCreate));
 
             return Ok(result.IsValid);
+        }
+        [HttpGet("UpdateProducts")]
+        public async Task<IActionResult> UpdateProducts()
+        {
+            await _updateProductsInElsasticBackgroundWorker.StartAsync(new CancellationToken());
+            return Ok();
         }
         [HttpGet("SearchProductUsingElastic")]
         public async Task<IActionResult> Search(SearchProductDto searchProductDto,int pageIndex, int pageSize)
