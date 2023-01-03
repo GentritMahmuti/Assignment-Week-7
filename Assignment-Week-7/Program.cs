@@ -1,4 +1,7 @@
 using Assignment_Week_7.Models.DTOs;
+using Assignment_Week_7.Models.Entities;
+using Assignment_Week_7.Services;
+using Assignment_Week_7.Services.IServices;
 using Assignment_Week_7.Workers;
 using Elasticsearch.Net;
 using FluentValidation;
@@ -16,8 +19,9 @@ var connectionSettings = new ConnectionSettings(node).BasicAuthentication("elast
 var client = new ElasticClient(connectionSettings);
 builder.Services.AddSingleton(client);
 
-builder.Services.AddSingleton<UpdateProductsInElsasticBackgroundWorker>();
-builder.Services.AddHostedService<UpdateProductsInElsasticBackgroundWorker>();
+builder.Services.AddSingleton<UpdateProductsInElasticBackgroundWorker>();
+builder.Services.AddHostedService<UpdateProductsInElasticBackgroundWorker>();
+builder.Services.AddTransient<IProductService, ProductService>();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
