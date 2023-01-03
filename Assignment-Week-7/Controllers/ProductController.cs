@@ -11,12 +11,30 @@ namespace Assignment_Week_7.Controllers
     {
         private readonly IValidator<SearchProductDto> _searchProductDtoValidator;
         private readonly ElasticClient _elasticClient;
+        
         public ProductController(ElasticClient elasticClient, IValidator<SearchProductDto> searchProductDtoValidator)
         {
             _elasticClient = elasticClient;
             _searchProductDtoValidator = searchProductDtoValidator;
-        }    
-        [HttpPost("elastic")]
+        }
+
+        [HttpGet("getAllProductsUsingElastic")]
+        public async Task<IActionResult> GetElasticAll()
+        {
+            var response = await _elasticClient.SearchAsync<Product>(s =>
+            s.Index("products")
+               .Query(q => q
+                  .MatchAll())
+               );
+            return Ok(response.Documents);
+        }
+        [HttpGet("getProductByIdInElastic")]
+        public async Task<IActionResult> GetElasticById(int id)
+        {
+            var response = await _elasticClient.GetAsync<Product>(id, x => x.Index("products"));
+            return Ok(response.Source);
+        }
+        [HttpPost("AddProductsInElastic")]
         public async Task<IActionResult> ElasticAdd()
         {
             var products = new List<Product>
@@ -36,7 +54,7 @@ namespace Assignment_Week_7.Controllers
                 new Product(){
                 Id = 3,
                 ProductName = "Product 3",
-                Description = "Description of product 3",
+                Description = "Description sale of product 3",
                 Price = 30.99,
                 Category = "Category A" },
                 new Product(){
@@ -60,7 +78,7 @@ namespace Assignment_Week_7.Controllers
                 new Product(){
                 Id = 7,
                 ProductName = "Product 7",
-                Description = "Description of product 7",
+                Description = "Description discount of product 7",
                 Price = 70.99,
                 Category = "Category A" },
                 new Product(){
@@ -72,7 +90,7 @@ namespace Assignment_Week_7.Controllers
                 new Product(){
                 Id = 9,
                 ProductName = "Product 9",
-                Description = "Description of product 9",
+                Description = "Description discount sale of product 9",
                 Price = 90.99,
                 Category = "Category C" },
                 new Product(){
@@ -88,58 +106,6 @@ namespace Assignment_Week_7.Controllers
             var response = _elasticClient.Bulk(x => x.Index("products").IndexMany(products));
             return Ok(response);
 
-        }
-        [HttpGet("SearchProductUsingElastic")]
-        public async Task<IActionResult> Search(SearchProductDto searchProductDto)
-        {
-            await _searchProductDtoValidator.ValidateAndThrowAsync(searchProductDto);
-
-            var result = await _elasticClient.SearchAsync<Product>(s => s
-                 .Index("products")
-                .Query(q => q
-                    .Match(m => m
-                        .Field(f => f.ProductName)
-                            .Query(searchProductDto.ProductName)
-                ) && q
-                .Match(m => m
-                    .Field(f => f.Category)
-                        .Query(searchProductDto.Category)
-                ) && q
-                .Range(r => r
-                    .Field(f => f.Price)
-                        .GreaterThanOrEquals(searchProductDto.Price)
-                ) && q
-                .QueryString(m => m
-                    .Fields(f => f.Field(p => p.Description))
-                        .Query("*discount*")
-                    ) || q
-                    .QueryString(m => m
-                    .Fields(f => f.Field(p => p.Description))
-                        .Query("*sale*")
-                         )
-                    )
-                );
-
-            return Ok(result.Documents);
-        }
-        [HttpDelete("DeleteAllProductsUsingElastic")]
-        public async Task<IActionResult> DeleteAllElastic()
-        {
-            var deleteResponse = _elasticClient.DeleteByQuery<Product>(del => del
-                   .Index("products")
-                   .Query(q => q.MatchAll())
-               );
-            return Ok("Deleted all!");
-        }
-        [HttpGet("getAllProductsUsingElastic")]
-        public async Task<IActionResult> GetElasticAll()
-        {
-            var response = await _elasticClient.SearchAsync<Product>(s =>
-            s.Index("products")
-               .Query(q => q
-                  .MatchAll())
-               );
-            return Ok(response.Documents);
         }
         [HttpPost("addProductsInElasticFromCSVFile")]
         public async Task<IActionResult> AddBulkElasticFromFile(IFormFile file)
@@ -159,7 +125,7 @@ namespace Assignment_Week_7.Controllers
             }
 
             List<Product> productsToCreate = new();
-            csvRecords.RemoveAt(0); 
+            csvRecords.RemoveAt(0);
             var id = 1;
             foreach (var line in csvRecords)
             {
@@ -180,5 +146,67 @@ namespace Assignment_Week_7.Controllers
 
             return Ok(result.IsValid);
         }
+        [HttpGet("SearchProductUsingElastic")]
+        public async Task<IActionResult> Search(SearchProductDto searchProductDto,int pageIndex, int pageSize)
+        {
+            await _searchProductDtoValidator.ValidateAndThrowAsync(searchProductDto);
+
+            var result = await _elasticClient.SearchAsync<Product>(s => s
+                .Index("products")
+                .From((pageIndex-1)*pageSize)
+                .Size(pageSize)
+                .Query(q => q
+                    .MatchPhrase(m => m
+                        .Field(f => f.ProductName)
+                            .Query(searchProductDto.ProductName)
+                ) && q
+                .MatchPhrase(m => m
+                    .Field(f => f.Category)
+                        .Query(searchProductDto.Category)
+                ) && q
+                .Range(r => r
+                    .Field(f => f.Price)
+                        .GreaterThanOrEquals(searchProductDto.Price)
+                ) || q
+                .MatchPhrase(m => m
+                    .Field(f => f.Description)
+                        .Query("discount")
+                        .Boost(3)
+                    ) || q
+                    .MatchPhrase(m => m
+                    .Field(f => f.Description)
+                        .Query("sale")
+                        .Boost(3)
+                         )
+                    )
+                .Sort(s=>s
+                .Descending(SortSpecialField.Score)
+                     )
+                ); 
+
+            return Ok(result.Documents);
+        }
+        [HttpDelete("DeleteAllProductsUsingElastic")]
+        public async Task<IActionResult> DeleteAllElastic()
+        {
+            var deleteResponse = _elasticClient.DeleteByQuery<Product>(del => del
+                   .Index("products")
+                   .Query(q => q.MatchAll())
+               );
+            return Ok("Deleted all!");
+        }
+        [HttpDelete("DeleteProductByIdInElastic")]
+        public async Task<IActionResult> DeleteProductByIdInElastic(int id)
+        {
+            var deleteResponse = _elasticClient.Delete<Product>(id, d => d
+            .Index("products")
+            );
+            if(!deleteResponse.IsValid)
+            {
+                throw new Exception("There isn't a product with that ID");
+            }
+            return Ok("Product deleted successfully!");
+        }
+
     }
 }

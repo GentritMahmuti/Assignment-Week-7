@@ -16,23 +16,34 @@ namespace lifeEcommerce.Validators
             RuleFor(c => c.ProductName)
                 .Must(x =>
                 {
-                    return x.Count() <= 100;
-                });
-
-
-            RuleFor(c => c.Description)
-               .NotEmpty()
-               .WithMessage("Name cant be empty")
-               .NotNull()
-               .WithMessage("Name cant be null");
-            RuleFor(c => c.Description)
-                .Must(x =>
-                {
-                    return x.Count() <= 100;
+                    if(x != null)
+                    {
+                        return x.Length <= 100;
+                    }
+                    return false;
                 });
 
             RuleFor(c => c.Price)
-                .GreaterThanOrEqualTo(0.01);
+               .NotEmpty()
+               .WithMessage("Price can't be empty")
+               .NotNull()
+               .WithMessage("Price can't be null")
+               .GreaterThanOrEqualTo(0.01);
+
+            RuleFor(c => c.Category)
+               .NotEmpty()
+               .WithMessage("Category can't be empty")
+               .NotNull()
+               .WithMessage("Category can't be null");
+            RuleFor(c => c.Category)
+                .Must(x =>
+                {
+                    if (x != null)
+                    {
+                        return x.Length <= 100;
+                    }
+                    return false;
+                });
 
         }   
     }
